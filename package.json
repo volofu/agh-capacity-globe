@@ -1,0 +1,12 @@
+{
+  "name": "agh-capacity-globe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Interactive 3D globe of live AGH Cloud GPU/CPU capacity.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "fetch": "node scripts/fetch-inventory.mjs",
+    "test": "node --test test/"
+  }
+}

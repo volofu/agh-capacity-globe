@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.*
+*.cookie
+.agh-session*
+raw*.json
+.DS_Store
