@@ -1,0 +1,67 @@
+name: Refresh data and deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * *" # daily, 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+      - name: Refresh inventory from AGH Cloud
+        env:
+          AGH_COOKIE: ${{ secrets.AGH_COOKIE }}
+        run: |
+          if [ -z "$AGH_COOKIE" ]; then
+            echo "::notice::AGH_COOKIE secret not set; deploying the committed inventory."
+          elif ! node scripts/fetch-inventory.mjs; then
+            echo "::warning::Inventory refresh failed (session expired?); deploying the last committed inventory."
+          fi
+
+      - name: Commit refreshed inventory
+        run: |
+          if git diff --quiet -- data/inventory.json; then
+            echo "No change."
+          else
+            git config user.name "inventory-bot"
+            git config user.email "inventory-bot@users.noreply.github.com"
+            git add data/inventory.json
+            git commit -m "chore(data): refresh inventory $(date -u +%F)"
+            git push
+          fi
+
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
